@@ -78,6 +78,24 @@ export class LocalVoiceService implements IVoiceProvider {
         `voice_${Date.now()}.wav`;
       const audioUrl = `http://localhost:4000/api/audio/${audioFilename}`;
 
+      // Ensure file is copied into backend audio dir
+      const audioDir = path.join(config.uploadDir, "audio");
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true });
+      }
+      const candidates = [
+        path.join(process.cwd(), "..", "voice-engine", "outputs", audioFilename),
+        path.join(process.cwd(), "voice-engine", "outputs", audioFilename),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          try {
+            fs.copyFileSync(cand, path.join(audioDir, audioFilename));
+          } catch (_) {}
+          break;
+        }
+      }
+
       return {
         audioUrl,
         audioFilename,

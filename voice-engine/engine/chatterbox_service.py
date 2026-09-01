@@ -1,9 +1,17 @@
 import os
 import uuid
 import wave
+import threading
 import numpy as np
 import pyttsx3
 from typing import Dict, Any, Optional
+
+try:
+    import pythoncom
+except ImportError:
+    pythoncom = None
+
+_tts_lock = threading.Lock()
 
 class ChatterboxV3Service:
     def __init__(self, device: str = "cpu"):
@@ -142,25 +150,47 @@ class ChatterboxV3Service:
         output_filename = f"chatterbox_v3_{uuid.uuid4().hex}.wav"
         output_path = os.path.join(self.output_dir, output_filename)
 
-        # Synthesize with persona-specific voice settings
-        try:
-            engine = pyttsx3.init()
-            if profile:
-                if profile.get("rate"):
-                    engine.setProperty("rate", profile["rate"])
-                if profile.get("voice_token_id"):
-                    engine.setProperty("voice", profile["voice_token_id"])
-            else:
-                engine.setProperty("rate", 155)
+        with _tts_lock:
+            if pythoncom:
+                try:
+                    pythoncom.CoInitialize()
+                except Exception:
+                    pass
 
-            engine.setProperty("volume", 0.95)
-            engine.save_to_file(text, output_path)
-            engine.runAndWait()
-        except Exception as e:
-            print(f"[chatterbox-v3] pyttsx3 notice: {e}")
-            with open(output_path, "wb") as f:
-                f.write(b"RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x08\x00\x00")
-                f.write(b"\x00" * 4096)
+            try:
+                engine = pyttsx3.init()
+                if profile and profile.get("rate"):
+                    engine.setProperty("rate", profile["rate"])
+                else:
+                    engine.setProperty("rate", 155)
+
+                if profile and profile.get("voice_token_id"):
+                    engine.setProperty("voice", profile["voice_token_id"])
+                elif persona_id:
+                    lower = (text + " " + persona_id).lower()
+                    if any(k in lower for k in ["mom", "priya", "female", "sister", "she", "her", "girl"]):
+                        for v in engine.getProperty("voices"):
+                            v_name = v.name.lower()
+                            if "zira" in v_name or "hazel" in v_name or "female" in v_name:
+                                engine.setProperty("voice", v.id)
+                                break
+
+                engine.setProperty("volume", 0.95)
+                engine.save_to_file(text, output_path)
+                engine.runAndWait()
+                engine.stop()
+            except Exception as e:
+                print(f"[chatterbox-v3] pyttsx3 notice: {e}")
+                # Fallback PCM WAV
+                with open(output_path, "wb") as f:
+                    f.write(b"RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x08\x00\x00")
+                    f.write(b"\x00" * 4096)
+            finally:
+                if pythoncom:
+                    try:
+                        pythoncom.CoUninitialize()
+                    except Exception:
+                        pass
 
         return {
             "audio_filename": output_filename,

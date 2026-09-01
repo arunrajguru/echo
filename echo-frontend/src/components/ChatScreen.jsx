@@ -50,7 +50,6 @@ export function ChatScreen({ persona, onBack, onOpenSpace }) {
     console.log(`[ECHO AUDIO] playback-start: ${audioUrl}`);
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
-    audio.crossOrigin = "anonymous";
     activeAudioRef.current = audio;
 
     audio.onplay = () => {
@@ -259,13 +258,27 @@ export function ChatScreen({ persona, onBack, onOpenSpace }) {
                       grounded in “{m.grounded}”
                     </div>
                   )}
-                  {m.audioUrl && (
+                  {m.role === "echo" && (
                     <button
-                      onClick={() => playGeneratedAudio(m.audioUrl)}
+                      onClick={async () => {
+                        if (m.audioUrl) {
+                          playGeneratedAudio(m.audioUrl);
+                        } else if (persona.id) {
+                          try {
+                            const synth = await api.synthesizeVoice(persona.id, m.text);
+                            if (synth && synth.audioUrl) {
+                              m.audioUrl = synth.audioUrl;
+                              playGeneratedAudio(synth.audioUrl);
+                            }
+                          } catch (e) {
+                            console.warn("[chat] Voice playback notice:", e);
+                          }
+                        }
+                      }}
                       className="mt-1.5 text-[11px] font-mono flex items-center gap-1 text-[var(--ember)] opacity-80 hover:opacity-100 transition-opacity"
-                      title="Play voice audio"
+                      title="Play cloned voice"
                     >
-                      <Volume2 size={12} /> Play audio
+                      <Volume2 size={12} /> Play voice
                     </button>
                   )}
                 </div>

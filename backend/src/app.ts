@@ -45,14 +45,19 @@ app.use("/uploads", express.static(config.uploadDir));
 // Direct audio streaming route for ElevenLabs / Chatterbox V3 generated voice audio
 app.get("/api/audio/:filename", (req, res) => {
   const { filename } = req.params;
-  const voiceEngineOutputs = path.join(process.cwd(), "..", "voice-engine", "outputs", filename);
-  const localOutputs = path.join(config.uploadDir, "audio", filename);
+  const candidates = [
+    path.join(config.uploadDir, "audio", filename),
+    path.join(process.cwd(), "..", "voice-engine", "outputs", filename),
+    path.join(process.cwd(), "voice-engine", "outputs", filename),
+    path.join(process.cwd(), "uploads", "audio", filename),
+  ];
 
   let filePath = "";
-  if (fs.existsSync(localOutputs)) {
-    filePath = localOutputs;
-  } else if (fs.existsSync(voiceEngineOutputs)) {
-    filePath = voiceEngineOutputs;
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      filePath = c;
+      break;
+    }
   }
 
   if (filePath) {

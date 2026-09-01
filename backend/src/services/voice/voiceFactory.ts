@@ -35,6 +35,14 @@ export class VoiceServiceManager {
     personaName: string;
     description?: string;
   }) {
+    // Proactively register profile in local Chatterbox engine so local engine ALWAYS has the cloned audio characteristics ready
+    try {
+      const localService = new LocalVoiceService();
+      await localService.cloneVoice(params);
+    } catch (e) {
+      console.warn("[voice] Local voice engine profile cache notice:", (e as any)?.message || e);
+    }
+
     try {
       return await this.provider.cloneVoice(params);
     } catch (err) {

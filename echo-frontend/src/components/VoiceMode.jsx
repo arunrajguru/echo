@@ -182,7 +182,6 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
       console.log(`[ECHO AUDIO] playback-start: ${audioUrl}`);
       const audio = new Audio();
       audio.preload = "auto";
-      audio.crossOrigin = "anonymous";
       activeAudioRef.current = audio;
 
       audio.onplay = () => {
