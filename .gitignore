@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+
+# Environment variables
+.env
+**/.env
+.env.local
+.env.*.local
+
+# Python artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+**/.pytest_cache/
+
+# Runtime data & uploads
+backend/uploads/
+backend/data/
+voice-engine/temp/
+voice-engine/outputs/
+
+# Logs
+*.log
+**/*.log
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
