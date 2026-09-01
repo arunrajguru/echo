@@ -4,7 +4,7 @@ import { Logo, Disclaimer, PrimaryButton, GhostButton } from "./shared/Basics.js
 import { MemoryOrb } from "./MemoryOrb.jsx";
 import * as api from "../services/api.js";
 
-export function Landing({ onCreate, onExplore, onSelectPersona, personas = [], onRefreshPersonas }) {
+export function Landing({ onCreate, onExplore, onSelectPersona, personas = [], onRefreshPersonas, user, onOpenAuth, onLogout }) {
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (e, personaId) => {
@@ -27,7 +27,30 @@ export function Landing({ onCreate, onExplore, onSelectPersona, personas = [], o
     <div className="echo-fade-in relative w-full h-full flex flex-col overflow-y-auto echo-scrollbar">
       <header className="flex items-center justify-between px-8 py-6">
         <Logo />
-        <Disclaimer compact />
+        <div className="flex items-center gap-4">
+          {user || localStorage.getItem("echo_token") ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono px-3 py-1 rounded-full border border-[var(--line)]" style={{ color: "var(--ink-dim)" }}>
+                {user?.email || "Signed In"}
+              </span>
+              <button
+                onClick={onLogout}
+                className="text-xs font-mono hover:text-[#d9756b] transition-colors echo-focus"
+                style={{ color: "var(--ink-dim)" }}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="text-xs font-mono px-3.5 py-1.5 rounded-full border border-[rgba(231,168,87,0.3)] bg-[rgba(231,168,87,0.08)] hover:bg-[rgba(231,168,87,0.18)] text-[var(--ember)] transition-all echo-focus"
+            >
+              Sign In / Register
+            </button>
+          )}
+          <Disclaimer compact />
+        </div>
       </header>
 
       <div className="flex-1 grid md:grid-cols-2 gap-8 items-center px-8 md:px-16 pb-8">

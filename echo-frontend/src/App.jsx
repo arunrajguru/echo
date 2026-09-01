@@ -76,6 +76,13 @@ export default function App() {
         {screen === "landing" && (
           <Landing
             personas={personas}
+            user={user}
+            onOpenAuth={() => setScreen("auth")}
+            onLogout={() => {
+              localStorage.removeItem("echo_token");
+              setUser(null);
+              setPersonas([]);
+            }}
             onRefreshPersonas={fetchPersonas}
             onSelectPersona={handleSelectPersona}
             onCreate={() => requireAuthThen("wizard")}
