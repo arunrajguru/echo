@@ -160,13 +160,19 @@ export async function startVoiceSession(personaId) {
   });
 }
 
-export async function transcribeVoice(personaId, audioBlob) {
+export async function transcribeVoice(personaId, audioBlob, filename = "mic_input.wav") {
+  console.log(`[VOICE] API URL: ${BASE_URL}/personas/${personaId}/voice/transcribe`);
+  console.log(`[VOICE] audio blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
   const formData = new FormData();
-  formData.append("file", audioBlob, "mic_input.wav");
-  return request(`/personas/${personaId}/voice/transcribe`, {
+  formData.append("file", audioBlob, filename);
+  console.log(`[VOICE] request sent: transcribeVoice`);
+  const data = await request(`/personas/${personaId}/voice/transcribe`, {
     method: "POST",
     body: formData,
   });
+  console.log(`[VOICE] response status: 200`);
+  console.log(`[VOICE] response data:`, data);
+  return data;
 }
 
 // --- Memories -----------------------------------------------------------

@@ -197,28 +197,43 @@ router.post(
   "/:id/voice/transcribe",
   audioUpload.single("file"),
   async (req: AuthRequest, res: Response): Promise<void> => {
+    let tempPath: string | null = null;
     try {
+      console.log(`[VOICE] request received: /api/personas/${req.params.id}/voice/transcribe`);
       if (!req.file) {
-        res.status(400).json({ error: "Audio file required for transcription" });
+        console.warn(`[VOICE] No audio file uploaded in request`);
+        res.status(400).json({ success: false, error: "Audio file required for transcription" });
         return;
       }
 
-      console.log(`[STT] Audio received for STT: ${req.file.size} bytes (${req.file.mimetype})`);
+      tempPath = req.file.path;
+      console.log(`[VOICE] filename: ${req.file.originalname}`);
+      console.log(`[VOICE] content type: ${req.file.mimetype}`);
+      console.log(`[VOICE] file size: ${req.file.size} bytes`);
 
-      try {
-        const result = await globalVoiceClient.transcribe(req.file.path);
-        console.log(`[STT] Transcription: "${result.text}"`);
-        res.status(200).json({
-          text: result.text,
-          status: "success",
-          device: result.device,
-        });
-      } catch (err: any) {
-        console.warn("[voice-routes] Whisper STT fallback:", err.message);
-        res.status(200).json({ text: "Do you remember the Goa trip and the rain?", status: "fallback" });
-      }
+      const result = await globalVoiceClient.transcribe(req.file.path);
+      console.log(`[VOICE] transcript: "${result.text}"`);
+
+      res.status(200).json({
+        success: true,
+        text: result.text,
+        status: result.status,
+        confidence: result.confidence,
+        device: result.device,
+        provider: result.provider,
+      });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || "Failed to transcribe audio" });
+      console.error("[VOICE] Speech transcription failed:", err.message);
+      res.status(500).json({
+        success: false,
+        error: "Speech transcription failed. Please try speaking again.",
+      });
+    } finally {
+      if (tempPath && fs.existsSync(tempPath)) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {}
+      }
     }
   }
 );

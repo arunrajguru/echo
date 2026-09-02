@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import request from "supertest";
+import fs from "fs";
+import path from "path";
 import app from "../src/app.js";
 import { connectDatabase, disconnectDatabase } from "../src/config/database.js";
 import { User } from "../src/models/User.js";
@@ -85,7 +87,7 @@ describe("ECHO — Complete Voice Mode & Text/Voice Continuity E2E Test Suite", 
     await request(app)
       .post(`/api/personas/${dadId}/analyze`)
       .set("Authorization", `Bearer ${token}`);
-  });
+  }, 60000);
 
   afterAll(async () => {
     await User.deleteMany({});
@@ -227,13 +229,15 @@ describe("ECHO — Complete Voice Mode & Text/Voice Continuity E2E Test Suite", 
     expect(dadMsgs).not.toContain("Pizza khane chalenge kya?");
   });
 
-  // TEST 7: Speech Transcription endpoint fallback
+  // TEST 7: Speech Transcription endpoint
   it("Test 7: Voice transcription endpoint accepts audio buffer and returns transcript", async () => {
-    const dummyAudio = Buffer.alloc(500);
+    const testAudioPath = path.join(process.cwd(), "..", "voice-engine", "test_audio.wav");
+    const audioBuffer = fs.existsSync(testAudioPath) ? fs.readFileSync(testAudioPath) : Buffer.alloc(500);
+
     const transRes = await request(app)
       .post(`/api/personas/${rahulId}/voice/transcribe`)
       .set("Authorization", `Bearer ${token}`)
-      .attach("file", dummyAudio, "mic_sample.wav");
+      .attach("file", audioBuffer, "mic_sample.wav");
 
     expect(transRes.status).toBe(200);
     expect(transRes.body.text).toBeDefined();

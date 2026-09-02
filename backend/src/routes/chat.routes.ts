@@ -33,6 +33,7 @@ router.post(
 
       console.log(`\n[ECHO VOICE] chat request received: personaId=${personaId}, sessionId=${sessionId || "new"}`);
       console.log(`[ECHO VOICE] message: "${messageToSend}"`);
+      console.log(`[VOICE] pipeline started: personaId=${personaId}, message="${messageToSend}"`);
 
       if (!mongoose.Types.ObjectId.isValid(personaId)) {
         res.status(400).json({ error: "Invalid persona ID" });
@@ -129,6 +130,7 @@ router.post(
 
       console.log(`[ECHO VOICE] Groq response received: provider=${providerUsed}`);
       console.log(`[ECHO VOICE] generated text: "${replyText}"`);
+      console.log(`[VOICE] response generated: "${replyText}"`);
 
       // Extract sources
       const sources: string[] = [];

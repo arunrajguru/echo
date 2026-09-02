@@ -343,12 +343,12 @@ export class LLMService {
     this.provider = provider;
   }
 
-  public setProvider(provider: ILLMProvider | null) {
-    this.provider = provider;
+  public setProvider(provider?: ILLMProvider | null) {
+    this.provider = provider || undefined;
   }
 
   public getProvider(): ILLMProvider | null {
-    if (this.provider !== undefined) {
+    if (this.provider) {
       return this.provider;
     }
     return createLLMProvider();

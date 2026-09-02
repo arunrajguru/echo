@@ -35,8 +35,9 @@ export class ElevenLabsVoiceService implements IVoiceProvider {
     description?: string;
   }): Promise<VoiceCloneResult> {
     const key = this.getActiveApiKey();
-    if (!key) {
-      throw new Error("ELEVENLABS_API_KEY is not configured");
+    if (!key || !key.startsWith("sk_")) {
+      console.warn("[voice] ELEVENLABS_API_KEY is not a valid secret key (must start with 'sk_'). Using Neural Voice profile.");
+      throw new Error("ELEVENLABS_API_KEY is not configured with a valid secret key (must start with 'sk_')");
     }
 
     if (!fs.existsSync(params.filePath)) {
@@ -97,8 +98,9 @@ export class ElevenLabsVoiceService implements IVoiceProvider {
     personaName?: string;
   }): Promise<VoiceSynthesisResult> {
     const key = this.getActiveApiKey();
-    if (!key) {
-      throw new Error("ELEVENLABS_API_KEY is not configured");
+    if (!key || !key.startsWith("sk_")) {
+      console.warn("[TTS] ELEVENLABS_API_KEY is not a valid secret key (must start with 'sk_'). Delegating to Neural Voice Engine.");
+      throw new Error("ELEVENLABS_API_KEY is not configured with a valid secret key (must start with 'sk_')");
     }
 
     // Determine initial voice ID

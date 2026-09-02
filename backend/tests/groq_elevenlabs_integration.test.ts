@@ -43,7 +43,7 @@ describe("ECHO — Groq Text Generation & ElevenLabs Voice Integration Test Suit
       .post("/api/personas")
       .set("Authorization", `Bearer ${token}`)
       .send({ name: "Dad", relationship: "Father" });
-    dadId = dadRes.body.id;
+    dadId = (dadRes.body._id || dadRes.body.id).toString();
 
     const dadChat = `12/04/19, 10:14 - Dad: Beta khana kha liya?
 12/04/19, 10:15 - Me: Haan Papa, lunch kar raha hoon.
@@ -62,7 +62,7 @@ describe("ECHO — Groq Text Generation & ElevenLabs Voice Integration Test Suit
       .post("/api/personas")
       .set("Authorization", `Bearer ${token}`)
       .send({ name: "Rahul", relationship: "Friend" });
-    rahulId = rahulRes.body.id;
+    rahulId = (rahulRes.body._id || rahulRes.body.id).toString();
 
     const rahulChat = `10/01/24, 11:00 - Rahul: Yo bro kya chal raha hai?
 10/01/24, 11:01 - Me: Working on ECHO.
@@ -83,7 +83,7 @@ describe("ECHO — Groq Text Generation & ElevenLabs Voice Integration Test Suit
       .post("/api/personas")
       .set("Authorization", `Bearer ${token}`)
       .send({ name: "Priya", relationship: "Friend" });
-    priyaId = priyaRes.body.id;
+    priyaId = (priyaRes.body._id || priyaRes.body.id).toString();
 
     const priyaChat = `15/09/22, 11:00 - Me: Hello
 15/09/22, 11:01 - Priya: Haan sab badhiya, tu bata sun na! 😊
@@ -95,14 +95,14 @@ describe("ECHO — Groq Text Generation & ElevenLabs Voice Integration Test Suit
       .set("Authorization", `Bearer ${token}`)
       .attach("file", Buffer.from(priyaChat), "priya_chat.txt");
     await request(app).post(`/api/personas/${priyaId}/analyze`).set("Authorization", `Bearer ${token}`);
-  });
+  }, 90000);
 
   afterAll(async () => {
     vi.restoreAllMocks();
     globalLLMService.setProvider(null);
     globalVoiceService.setProvider(new LocalVoiceService());
     await disconnectDatabase();
-  });
+  }, 30000);
 
   beforeEach(() => {
     globalLLMService.setProvider(null);

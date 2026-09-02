@@ -33,16 +33,63 @@ export class VoiceClientService {
     return response.data;
   }
 
-  public async transcribe(filePath: string): Promise<{ text: string; status: string; confidence?: number; device?: string }> {
-    const formData = new FormData();
-    formData.append("file", fs.createReadStream(filePath));
+  public async transcribe(filePath: string): Promise<{ text: string; status: string; confidence?: number; device?: string; provider?: string }> {
+    console.log(`[VOICE] STT request started: ${filePath}`);
 
-    const response = await axios.post(`${this.baseUrl}/voice/transcribe`, formData, {
-      headers: formData.getHeaders(),
-      timeout: 30000,
-    });
+    // Strategy 1: Try Groq Whisper API (Fastest, production/cloud ready)
+    const groqKey = config.groqApiKey || config.openaiApiKey;
+    if (groqKey) {
+      try {
+        const formData = new FormData();
+        formData.append("file", fs.createReadStream(filePath));
+        formData.append("model", "whisper-large-v3");
+        formData.append("temperature", "0");
+        formData.append("response_format", "json");
 
-    return response.data;
+        const response = await axios.post("https://api.groq.com/openai/v1/audio/transcriptions", formData, {
+          headers: {
+            ...formData.getHeaders(),
+            Authorization: `Bearer ${groqKey}`,
+          },
+          timeout: 25000,
+        });
+
+        const transcript = (response.data?.text || "").trim();
+        console.log(`[VOICE] STT response received: transcript="${transcript}" (provider: groq-whisper)`);
+        return {
+          text: transcript,
+          status: "success",
+          confidence: 0.98,
+          provider: "groq-whisper",
+        };
+      } catch (groqErr: any) {
+        console.warn(`[VOICE] Groq Whisper failed (${groqErr.message}), trying local voice-engine fallback...`);
+      }
+    }
+
+    // Strategy 2: Fallback to local Python FastAPI voice engine if running
+    try {
+      const formData = new FormData();
+      formData.append("file", fs.createReadStream(filePath));
+
+      const response = await axios.post(`${this.baseUrl}/voice/transcribe`, formData, {
+        headers: formData.getHeaders(),
+        timeout: 30000,
+      });
+
+      const transcript = (response.data?.text || "").trim();
+      console.log(`[VOICE] STT response received: transcript="${transcript}" (provider: local-engine)`);
+      return {
+        text: transcript,
+        status: response.data?.status || "success",
+        confidence: response.data?.confidence || 0.9,
+        device: response.data?.device,
+        provider: "local-engine",
+      };
+    } catch (localErr: any) {
+      console.error(`[VOICE] STT transcription failed across all providers:`, localErr.message);
+      throw new Error(`Speech transcription failed: ${localErr.message}`);
+    }
   }
 
   public async getHealth(): Promise<any> {

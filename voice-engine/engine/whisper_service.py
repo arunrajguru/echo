@@ -24,8 +24,7 @@ class WhisperSTTService:
                 except sr.UnknownValueError:
                     return {"text": "", "status": "unintelligible", "confidence": 0.0}
                 except sr.RequestError as e:
-                    # Fallback
-                    return {"text": "Do you remember the Goa trip?", "status": "fallback", "confidence": 0.85}
+                    raise RuntimeError(f"Speech recognition service request error: {e}")
         except Exception as e:
             print(f"[whisper-stt] Error during transcription: {e}")
-            return {"text": "Do you remember the Goa trip?", "status": "fallback", "confidence": 0.8}
+            raise e

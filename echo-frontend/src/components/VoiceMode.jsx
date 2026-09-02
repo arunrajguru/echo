@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, PhoneOff, MessageSquare, AlertCircle } from "lucide-react";
+import { Mic, MicOff, PhoneOff, MessageSquare, AlertCircle, Play } from "lucide-react";
 import { Logo } from "./shared/Basics.jsx";
 import { MemoryOrb } from "./MemoryOrb.jsx";
-import { WavRecorder } from "../services/wavRecorder.js";
+import { AudioRecorder } from "../services/wavRecorder.js";
 import * as api from "../services/api.js";
 
 /**
  * Dedicated Echo Voice Mode Screen
  * Full-screen immersive voice-to-voice experience with animated particle orb,
- * real-time speech recognition, Groq RAG text generation, and ElevenLabs audio playback.
+ * real-time audio recording, Groq Whisper STT / WebSpeech, Groq RAG text generation,
+ * and ElevenLabs / Chatterbox audio playback.
  */
 export function VoiceMode({ persona, messages, setMessages, sessionId, onExit }) {
   const [orbState, setOrbState] = useState("listening"); // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
@@ -17,13 +18,17 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
   const [liveSpokenText, setLiveSpokenText] = useState("");
   const [latestEchoResponse, setLatestEchoResponse] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [blockedAudioUrl, setBlockedAudioUrl] = useState(null);
 
   const recognitionRef = useRef(null);
   const recorderRef = useRef(null);
   const activeAudioRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
+  const micStreamRef = useRef(null);
   const animFrameRef = useRef(null);
+  const silenceTimerRef = useRef(null);
+  const speechDetectedRef = useRef(false);
   const isListeningRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const isMutedRef = useRef(false);
@@ -70,6 +75,7 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
 
       isProcessingTurnRef.current = true;
       const cleanText = userText.trim();
+      console.log(`[VOICE] transcript: "${cleanText}"`);
       console.log(`[ECHO VOICE] transcript: "${cleanText}"`);
       setLiveSpokenText(cleanText);
       setOrbState("thinking");
@@ -81,6 +87,7 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
       const personaId = persona?.id || persona?._id;
 
       try {
+        console.log(`[VOICE] pipeline started: personaId=${personaId}, query="${cleanText}"`);
         console.log(`[ECHO VOICE] sending chat request: personaId=${personaId}, sessionId=${sessionId || "default"}`);
         let replyData = null;
 
@@ -91,6 +98,7 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
           });
         }
 
+        console.log(`[VOICE] response generated: "${replyData?.message || ""}"`);
         console.log(`[ECHO VOICE] chat response status: 200`);
         const replyMessage =
           replyData?.message ||
@@ -188,6 +196,7 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
         console.log("[ECHO VOICE] audio started: playing stream");
         setOrbState("speaking");
         isSpeakingRef.current = true;
+        setBlockedAudioUrl(null);
         startSpeakingVisualPulse();
       };
 
@@ -229,7 +238,8 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
         audio.src = audioUrl;
         await audio.play();
       } catch (playErr) {
-        console.warn("[ECHO AUDIO] playback-error: Audio play prevented by browser, simulating duration:", playErr);
+        console.warn("[ECHO AUDIO] playback-error: Autoplay prevented by browser:", playErr);
+        setBlockedAudioUrl(audioUrl);
         setOrbState("speaking");
         isSpeakingRef.current = true;
         startSpeakingVisualPulse();
@@ -267,33 +277,153 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
     };
   }, [processSpokenTurn]);
 
-  // Start Speech-to-Text Listening (Web Speech API with WavRecorder fallback)
-  const startListening = useCallback(() => {
+  // Finish user recording turn, send to STT endpoint, and process transcript
+  const finishRecordingTurn = useCallback(async () => {
+    if (!recorderRef.current || !isListeningRef.current || isProcessingTurnRef.current) {
+      return;
+    }
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    isListeningRef.current = false;
+    setOrbState("thinking");
+
+    try {
+      const audioBlob = await recorderRef.current.stop();
+      if (!audioBlob || audioBlob.size < 1000) {
+        console.log("[VOICE] Recording contains no audible voice, resuming listen...");
+        if (!isMutedRef.current && !isSpeakingRef.current && !isProcessingTurnRef.current) {
+          startListening();
+        }
+        return;
+      }
+
+      console.log(`[VOICE] Audio recorded: ${audioBlob.size} bytes (${audioBlob.type})`);
+      const personaId = persona?.id || persona?._id;
+
+      if (!personaId) {
+        throw new Error("No active persona ID");
+      }
+
+      // Send to Backend STT
+      const result = await api.transcribeVoice(personaId, audioBlob, `voice_recording.${audioBlob.type.includes("wav") ? "wav" : "webm"}`);
+      const transcript = (result?.text || "").trim();
+
+      if (transcript) {
+        console.log(`[VOICE] STT transcription success: "${transcript}"`);
+        await processSpokenTurn(transcript);
+      } else {
+        console.warn("[VOICE] STT returned empty transcription");
+        setErrorMessage("Could not understand audio. Please speak again.");
+        setOrbState("error");
+        setTimeout(() => {
+          if (!isMutedRef.current) startListening();
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("[VOICE] STT error:", err);
+      setErrorMessage(err.message || "Speech transcription failed.");
+      setOrbState("error");
+      setTimeout(() => {
+        if (!isMutedRef.current) startListening();
+      }, 2000);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persona, processSpokenTurn]);
+
+  // Start Speech Capture (MediaRecorder with AudioContext Analyser & WebSpeech assist)
+  const startListening = useCallback(async () => {
     if (isMutedRef.current || isSpeakingRef.current || isProcessingTurnRef.current) return;
 
     setOrbState("listening");
-    setAmplitude(0.5);
+    setAmplitude(0.45);
     setLiveSpokenText("");
     setErrorMessage("");
     latestTranscriptRef.current = "";
+    speechDetectedRef.current = false;
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    // 1. Initialize MediaRecorder audio capture
+    try {
+      if (!recorderRef.current) {
+        recorderRef.current = new AudioRecorder();
+      }
+      await recorderRef.current.start();
+      isListeningRef.current = true;
+      setOrbState("listening");
 
+      // Attach AudioContext Analyser for real-time visual amplitude and silence detection
+      if (recorderRef.current.mediaStream) {
+        try {
+          const stream = recorderRef.current.mediaStream;
+          micStreamRef.current = stream;
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          audioContextRef.current = audioCtx;
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const checkVolume = () => {
+            if (!isListeningRef.current) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / dataArray.length;
+            const normAmp = Math.min(1.0, Math.max(0.3, avg / 60));
+            setAmplitude(normAmp);
+
+            // Speech activity detection
+            if (avg > 15) {
+              speechDetectedRef.current = true;
+              if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
+                silenceTimerRef.current = null;
+              }
+            } else if (speechDetectedRef.current && avg <= 10) {
+              // User spoke and then paused for 1.4s -> trigger automatic turn
+              if (!silenceTimerRef.current) {
+                silenceTimerRef.current = setTimeout(() => {
+                  console.log("[VOICE] Silence detected after speech, finishing turn...");
+                  finishRecordingTurn();
+                }, 1400);
+              }
+            }
+
+            requestAnimationFrame(checkVolume);
+          };
+          requestAnimationFrame(checkVolume);
+        } catch (ctxErr) {
+          console.warn("[VOICE] AudioContext analyser setup notice:", ctxErr);
+        }
+      }
+    } catch (err) {
+      console.error("[VOICE] Microphone initialization error:", err);
+      isListeningRef.current = false;
+      setErrorMessage(err.message || "Could not access microphone.");
+      setOrbState("error");
+      return;
+    }
+
+    // 2. Parallel WebSpeech assist for instant live preview subtitles (if browser supports it)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       try {
         if (recognitionRef.current) {
-          recognitionRef.current.abort();
+          try {
+            recognitionRef.current.abort();
+          } catch (_) {}
         }
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = true;
-        recognition.lang = "en-IN"; // English/Hinglish optimal
-
-        recognition.onstart = () => {
-          isListeningRef.current = true;
-          setOrbState("listening");
-        };
+        recognition.lang = "en-IN";
 
         recognition.onresult = (event) => {
           let interim = "";
@@ -310,80 +440,57 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
           if (spoken) {
             latestTranscriptRef.current = spoken;
             setLiveSpokenText(spoken);
-            setAmplitude(0.8);
+            speechDetectedRef.current = true;
           }
         };
 
         recognition.onerror = (event) => {
-          console.warn("[ECHO VOICE] Speech recognition error:", event.error);
-          isListeningRef.current = false;
-          if (event.error === "no-speech") {
-            if (!isMutedRef.current && !isSpeakingRef.current && !isProcessingTurnRef.current) {
-              setTimeout(startListening, 300);
-            }
-          } else if (event.error === "not-allowed") {
-            setErrorMessage("Microphone access was denied. Please allow microphone permissions.");
-            setOrbState("error");
-          }
+          console.warn("[VOICE] WebSpeech notice:", event.error);
         };
 
         recognition.onend = () => {
-          isListeningRef.current = false;
           const freshTranscript = (latestTranscriptRef.current || "").trim();
-          latestTranscriptRef.current = "";
-
-          if (freshTranscript) {
-            console.log(`[ECHO VOICE] speech recognized: "${freshTranscript}"`);
+          if (freshTranscript && isListeningRef.current) {
+            console.log(`[VOICE] WebSpeech completed turn: "${freshTranscript}"`);
+            if (recorderRef.current && isListeningRef.current) {
+              recorderRef.current.cancel();
+            }
+            isListeningRef.current = false;
             processSpokenTurn(freshTranscript);
-          } else if (!isMutedRef.current && !isSpeakingRef.current && !isProcessingTurnRef.current) {
-            setOrbState("listening");
-            setTimeout(startListening, 300);
           }
         };
 
         recognitionRef.current = recognition;
         recognition.start();
-        return;
-      } catch (err) {
-        console.warn("[ECHO VOICE] WebSpeech init error, using fallback:", err);
+      } catch (recErr) {
+        console.warn("[VOICE] WebSpeech init notice:", recErr);
       }
     }
-
-    // Fallback: WavRecorder microphone capture
-    startWavRecorderCapture();
-  }, [processSpokenTurn]);
-
-  // Fallback Microphone Recorder
-  const startWavRecorderCapture = useCallback(async () => {
-    try {
-      if (!recorderRef.current) {
-        recorderRef.current = new WavRecorder();
-      }
-      await recorderRef.current.start();
-      isListeningRef.current = true;
-      setOrbState("listening");
-    } catch (err) {
-      console.error("[ECHO VOICE] Microphone fallback error:", err);
-      setErrorMessage("Could not access microphone.");
-      setOrbState("error");
-    }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishRecordingTurn, processSpokenTurn]);
 
   // Lifecycle: start listening on mount, cleanup on unmount
   useEffect(() => {
     startListening();
 
     return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch (_) {}
         recognitionRef.current = null;
       }
       if (recorderRef.current) {
-        recorderRef.current.stop().catch(() => {});
+        recorderRef.current.cancel();
         recorderRef.current = null;
       }
       if (activeAudioRef.current) {
-        activeAudioRef.current.pause();
+        try {
+          activeAudioRef.current.pause();
+        } catch (_) {}
         activeAudioRef.current = null;
       }
       if (animFrameRef.current) {
@@ -397,8 +504,14 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Toggle Mute
+  // Toggle Mute / Turn Button
   const toggleMute = () => {
+    if (isListeningRef.current && speechDetectedRef.current) {
+      // User tapped mic while speaking -> manually finish turn immediately
+      finishRecordingTurn();
+      return;
+    }
+
     if (isMuted) {
       setIsMuted(false);
       isMutedRef.current = false;
@@ -406,11 +519,16 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
     } else {
       setIsMuted(true);
       isMutedRef.current = true;
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
       }
-      if (recorderRef.current && isListeningRef.current) {
-        recorderRef.current.stop().catch(() => {});
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (_) {}
+      }
+      if (recorderRef.current) {
+        recorderRef.current.cancel();
       }
       setOrbState("idle");
     }
@@ -418,11 +536,21 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
 
   // Exit Voice Mode cleanly
   const handleExit = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+    }
     if (recognitionRef.current) {
-      recognitionRef.current.abort();
+      try {
+        recognitionRef.current.abort();
+      } catch (_) {}
+    }
+    if (recorderRef.current) {
+      recorderRef.current.cancel();
     }
     if (activeAudioRef.current) {
-      activeAudioRef.current.pause();
+      try {
+        activeAudioRef.current.pause();
+      } catch (_) {}
     }
     onExit();
   };
@@ -519,6 +647,19 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
             </p>
           )}
 
+          {blockedAudioUrl && (
+            <button
+              onClick={() => {
+                if (activeAudioRef.current) {
+                  activeAudioRef.current.play().then(() => setBlockedAudioUrl(null)).catch(() => {});
+                }
+              }}
+              className="px-3 py-1 text-xs font-mono rounded-full bg-[#e7a857] text-[#1a1305] flex items-center gap-1.5 shadow hover:opacity-90"
+            >
+              <Play size={12} /> Tap to play audio
+            </button>
+          )}
+
           {errorMessage && (
             <p className="text-xs text-[#d9756b] flex items-center gap-1.5 font-mono">
               <AlertCircle size={12} />
@@ -556,7 +697,7 @@ export function VoiceMode({ persona, messages, setMessages, sessionId, onExit })
             color: orbState === "listening" && !isMuted ? "#1a1305" : "#f7eedc",
             transform: orbState === "listening" ? "scale(1.05)" : "scale(1)",
           }}
-          title={isMuted ? "Unmute microphone" : "Mute microphone"}
+          title={isMuted ? "Unmute microphone" : "Mute microphone / Finish speaking"}
           aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
         >
           {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
