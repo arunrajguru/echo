@@ -17,7 +17,7 @@ export class VoiceClientService {
 
     const response = await axios.post(`${this.baseUrl}/voice/clone`, formData, {
       headers: formData.getHeaders(),
-      timeout: 30000,
+      timeout: 120000,
     });
 
     return response.data;
@@ -27,7 +27,7 @@ export class VoiceClientService {
     const response = await axios.post(
       `${this.baseUrl}/voice/synthesize`,
       { text, voice_id: voiceId, persona_id: personaId },
-      { timeout: 10000 }
+      { timeout: 120000 }
     );
 
     return response.data;

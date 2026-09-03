@@ -7,10 +7,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 from engine.hardware import detect_device
-from engine.chatterbox_service import ChatterboxV3Service
+from engine.xtts_service import XTTSService
 from engine.whisper_service import WhisperSTTService
 
-app = FastAPI(title="ECHO Chatterbox V3 Voice Engine", version="3.0.0")
+app = FastAPI(title="ECHO XTTS-v2 Voice Engine", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,7 +26,7 @@ device = hw_info["device"]
 print(f"[voice-engine] Hardware detected: {hw_info['details']}")
 
 # Initialize Chatterbox Multilingual V3 & Whisper STT (cached in memory across requests)
-voice_service = ChatterboxV3Service(device=device)
+voice_service = XTTSService(device=device)
 stt_service = WhisperSTTService(device=device)
 
 # Ensure temp and output directories
@@ -48,8 +48,8 @@ class SynthesizeRequest(BaseModel):
 def health():
     return {
         "status": "ok",
-        "engine": "Chatterbox Multilingual",
-        "model": "V3",
+        "engine": "Coqui XTTS-v2",
+        "model": "v2.0.3",
         "device": device,
         "loaded": True,
         "hardware": hw_info,

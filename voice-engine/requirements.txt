@@ -2,8 +2,10 @@ fastapi>=0.115.0
 uvicorn>=0.30.0
 pydantic>=2.8.0
 python-multipart>=0.0.9
-torch>=2.0.0
+torch>=2.1.0
+torchaudio>=2.1.0
+coqui-tts>=0.24.0
 soundfile>=0.12.1
 SpeechRecognition>=3.10.0
-pyttsx3>=2.90
 requests>=2.31.0
+
