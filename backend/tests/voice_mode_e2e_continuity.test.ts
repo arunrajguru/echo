@@ -270,8 +270,8 @@ describe("ECHO — Complete Voice Mode & Text/Voice Continuity E2E Test Suite", 
       .set("Authorization", `Bearer ${token}`);
 
     const strResponse = JSON.stringify(personaRes.body);
-    expect(strResponse).not.toContain("sk_REDACTED_ELEVENLABS_KEY");
-    expect(strResponse).not.toContain("gsk_REDACTED_GROQ_API_KEY");
+    expect(strResponse).not.toMatch(/gsk_[a-zA-Z0-9]{30,}/);
+    expect(strResponse).not.toMatch(/sk_[a-zA-Z0-9]{30,}/);
 
     const chatRes = await request(app)
       .post(`/api/chat/${rahulId}`)
@@ -279,8 +279,8 @@ describe("ECHO — Complete Voice Mode & Text/Voice Continuity E2E Test Suite", 
       .send({ message: "hello" });
 
     const strChat = JSON.stringify(chatRes.body);
-    expect(strChat).not.toContain("sk_REDACTED_ELEVENLABS_KEY");
-    expect(strChat).not.toContain("gsk_REDACTED_GROQ_API_KEY");
+    expect(strChat).not.toMatch(/gsk_[a-zA-Z0-9]{30,}/);
+    expect(strChat).not.toMatch(/sk_[a-zA-Z0-9]{30,}/);
   });
 
   // TEST 10: Persona with missing voice profile handles synthesis safely
