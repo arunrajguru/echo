@@ -1,5 +1,6 @@
 import axios from "axios";
 import fs from "fs";
+import path from "path";
 import FormData from "form-data";
 import { config } from "../config/env.js";
 
@@ -41,7 +42,14 @@ export class VoiceClientService {
     if (groqKey) {
       try {
         const formData = new FormData();
-        formData.append("file", fs.createReadStream(filePath));
+        const baseName = path.basename(filePath);
+        const fileName = baseName.includes(".") ? baseName : `${baseName}.wav`;
+        const contentType = fileName.endsWith(".mp3") ? "audio/mpeg" : fileName.endsWith(".webm") ? "audio/webm" : "audio/wav";
+
+        formData.append("file", fs.createReadStream(filePath), {
+          filename: fileName,
+          contentType: contentType,
+        });
         formData.append("model", "whisper-large-v3");
         formData.append("temperature", "0");
         formData.append("response_format", "json");
@@ -63,7 +71,8 @@ export class VoiceClientService {
           provider: "groq-whisper",
         };
       } catch (groqErr: any) {
-        console.warn(`[VOICE] Groq Whisper failed (${groqErr.message}), trying local voice-engine fallback...`);
+        const detail = groqErr.response?.data ? JSON.stringify(groqErr.response.data) : groqErr.message;
+        console.warn(`[VOICE] Groq Whisper notice (${detail}), trying local fallback...`);
       }
     }
 

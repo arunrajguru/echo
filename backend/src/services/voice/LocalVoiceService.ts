@@ -41,39 +41,45 @@ export class LocalVoiceService implements IVoiceProvider {
       } catch (_) {}
     }
 
-    const result = await globalVoiceClient.synthesize(params.text, params.voiceId, params.personaId);
-    const audioFilename =
-      (result as any).audio_filename ||
-      result.audio_url?.split("/").pop() ||
-      `voice_${Date.now()}.wav`;
-    const audioUrl = `http://localhost:4000/api/audio/${audioFilename}`;
+    try {
+      const result = await globalVoiceClient.synthesize(params.text, params.voiceId, params.personaId);
+      const audioFilename =
+        (result as any).audio_filename ||
+        result.audio_url?.split("/").pop() ||
+        `voice_${Date.now()}.wav`;
+      const audioUrl = `http://localhost:4000/api/audio/${audioFilename}`;
 
-    // Ensure file is copied into backend audio dir
-    const audioDir = path.join(config.uploadDir, "audio");
-    if (!fs.existsSync(audioDir)) {
-      fs.mkdirSync(audioDir, { recursive: true });
-    }
-    const candidates = [
-      path.join(process.cwd(), "..", "voice-engine", "outputs", audioFilename),
-      path.join(process.cwd(), "voice-engine", "outputs", audioFilename),
-    ];
-    for (const cand of candidates) {
-      if (fs.existsSync(cand)) {
-        try {
-          fs.copyFileSync(cand, path.join(audioDir, audioFilename));
-        } catch (_) {}
-        break;
+      // Ensure file is copied into backend audio dir
+      const audioDir = path.join(config.uploadDir, "audio");
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true });
       }
-    }
+      const candidates = [
+        path.join(process.cwd(), "..", "voice-engine", "outputs", audioFilename),
+        path.join(process.cwd(), "voice-engine", "outputs", audioFilename),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          try {
+            fs.copyFileSync(cand, path.join(audioDir, audioFilename));
+          } catch (_) {}
+          break;
+        }
+      }
 
-    return {
-      audioUrl,
-      audioFilename,
-      provider: "local",
-      engine: "Coqui XTTS-v2",
-      model: "v2.0.3",
-      disclaimer: result.disclaimer || "AI-GENERATED VOICE — synthetic audio, clearly labeled, never presented as a real recording.",
-      voiceReferenceUsed: true,
-    };
+      return {
+        audioUrl,
+        audioFilename,
+        provider: "local",
+        engine: "Coqui XTTS-v2",
+        model: "v2.0.3",
+        disclaimer: result.disclaimer || "AI-GENERATED VOICE — synthetic audio, clearly labeled, never presented as a real recording.",
+        voiceReferenceUsed: true,
+      };
+    } catch (localErr: any) {
+      console.warn(`[voice] Local Python engine unavailable (${localErr.message}). Using Neural TTS fallback...`);
+      const { globalEdgeTTSService } = await import("./EdgeTTSVoiceService.js");
+      return await globalEdgeTTSService.synthesize(params);
+    }
   }
 }

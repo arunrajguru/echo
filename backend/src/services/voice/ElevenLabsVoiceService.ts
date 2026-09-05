@@ -99,8 +99,9 @@ export class ElevenLabsVoiceService implements IVoiceProvider {
   }): Promise<VoiceSynthesisResult> {
     const key = this.getActiveApiKey();
     if (!key || !key.startsWith("sk_")) {
-      console.warn("[TTS] ELEVENLABS_API_KEY is not a valid secret key (must start with 'sk_'). Delegating to Neural Voice Engine.");
-      throw new Error("ELEVENLABS_API_KEY is not configured with a valid secret key (must start with 'sk_')");
+      console.warn("[TTS] ELEVENLABS_API_KEY is not a valid secret key (must start with 'sk_'). Using high-quality Neural Voice Engine.");
+      const { globalEdgeTTSService } = await import("./EdgeTTSVoiceService.js");
+      return await globalEdgeTTSService.synthesize(params);
     }
 
     // Determine initial voice ID

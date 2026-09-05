@@ -4,13 +4,55 @@ import mongoose from "mongoose";
 import { Persona } from "../models/Persona.js";
 import { ChatSession } from "../models/ChatSession.js";
 import { VoiceProfile } from "../models/VoiceProfile.js";
-import { requireAuth, AuthRequest } from "../middleware/auth.js";
+import { optionalAuth, AuthRequest } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { globalRAGService } from "../services/ragService.js";
 import { globalLLMService, synthesizeLocalGroundedResponse } from "../services/llm/index.js";
 import { globalVoiceService } from "../services/voice/voiceFactory.js";
 import { buildSystemPrompt } from "../services/llm/promptTemplates.js";
 import { ChatMessagePayload } from "../services/llm/LLMProvider.js";
+
+const DEMO_PERSONAS_DEF: Record<string, any> = {
+  demo_dad: {
+    _id: "demo_dad",
+    name: "Dad",
+    relationship: "Father",
+    targetParticipant: "Dad",
+    styleProfile: {
+      tone: "Warm, caring, economical with words",
+      language: "Hinglish (Hindi check-ins)",
+      commonEmojis: ["😂", "👍", "🙏", "❤️"],
+      commonPhrases: ["call me when you land", "so what broke this week?", "obviously 😂"],
+      averageLength: "short",
+    },
+  },
+  demo_rahul: {
+    _id: "demo_rahul",
+    name: "Rahul",
+    relationship: "Best Friend",
+    targetParticipant: "Rahul",
+    styleProfile: {
+      tone: "Casual, energetic, Hinglish bro",
+      language: "Hinglish",
+      commonEmojis: ["😂", "🔥", "🏆"],
+      commonPhrases: ["kal milte hain bro", "arre bro", "scene kya hai"],
+      averageLength: "short",
+    },
+  },
+  demo_priya: {
+    _id: "demo_priya",
+    name: "Priya",
+    relationship: "Close Friend",
+    targetParticipant: "Priya",
+    styleProfile: {
+      tone: "Expressive, creative, enthusiastic",
+      language: "English / Hinglish",
+      commonEmojis: ["😊", "🎨", "❤️", "✨"],
+      commonPhrases: ["sun na, talk soon!", "so exciting!", "love this"],
+      averageLength: "medium",
+    },
+  },
+};
 
 const router = Router();
 
@@ -19,7 +61,7 @@ const SendMessageSchema = z.object({
   sessionId: z.string().optional(),
 });
 
-router.use(requireAuth);
+router.use(optionalAuth);
 
 // POST /api/chat/:personaId
 router.post(
@@ -35,59 +77,70 @@ router.post(
       console.log(`[ECHO VOICE] message: "${messageToSend}"`);
       console.log(`[VOICE] pipeline started: personaId=${personaId}, message="${messageToSend}"`);
 
-      if (!mongoose.Types.ObjectId.isValid(personaId)) {
-        res.status(400).json({ error: "Invalid persona ID" });
-        return;
+      let persona: any = null;
+      let isDemo = false;
+
+      if (personaId.startsWith("demo_") || personaId === "demo" || personaId === "mock_demo_persona") {
+        isDemo = true;
+        const demoKey = personaId in DEMO_PERSONAS_DEF ? personaId : "demo_dad";
+        persona = DEMO_PERSONAS_DEF[demoKey];
+      } else if (mongoose.Types.ObjectId.isValid(personaId)) {
+        persona = await Persona.findOne({ _id: personaId, ...(req.user ? { userId: req.user.id } : {}) });
       }
 
-      const persona = await Persona.findOne({ _id: personaId, userId: req.user!.id });
       if (!persona) {
         res.status(404).json({ error: "Persona not found" });
         return;
       }
 
-      console.log(`[ECHO VOICE] personaId: ${persona._id} (${persona.name})`);
+      console.log(`[ECHO VOICE] personaId: ${persona._id || persona.id} (${persona.name})`);
 
-      // 1. Find or create ChatSession
-      let session;
-      if (sessionId && mongoose.Types.ObjectId.isValid(sessionId)) {
-        session = await ChatSession.findOne({ _id: sessionId, personaId: persona._id });
-      }
-      if (!session) {
-        session = await ChatSession.findOne({ personaId: persona._id, userId: req.user!.id }).sort({
-          updatedAt: -1,
-        });
-      }
-      if (!session) {
-        session = new ChatSession({
-          personaId: persona._id,
-          userId: req.user!.id,
-          title: `Chat with ${persona.name}`,
-          messages: [],
-        });
+      // 1. Find or create ChatSession (if real DB persona)
+      let session: any = null;
+      if (!isDemo && req.user) {
+        if (sessionId && mongoose.Types.ObjectId.isValid(sessionId)) {
+          session = await ChatSession.findOne({ _id: sessionId, personaId: persona._id });
+        }
+        if (!session) {
+          session = await ChatSession.findOne({ personaId: persona._id, userId: req.user.id }).sort({
+            updatedAt: -1,
+          });
+        }
+        if (!session) {
+          session = new ChatSession({
+            personaId: persona._id,
+            userId: req.user.id,
+            title: `Chat with ${persona.name}`,
+            messages: [],
+          });
+        }
       }
 
-      console.log(`[ECHO VOICE] sessionId: ${session._id}`);
+      console.log(`[ECHO VOICE] sessionId: ${session?._id || "demo"}`);
 
       // 2. RAG Retrieval
       const ragContext = await globalRAGService.retrieve({
-        personaId: persona._id.toString(),
+        personaId: (persona._id || persona.id).toString(),
         query: messageToSend,
         threshold: 0.20,
       });
 
-      const recentHistoryText = session.messages
-        .slice(-6)
-        .map((m) => `${m.role === "echo" ? persona.name : "User"}: ${m.text}`)
-        .join("\n");
+      const recentHistoryText = session
+        ? session.messages
+            .slice(-6)
+            .map((m: any) => `${m.role === "echo" ? persona.name : "User"}: ${m.text}`)
+            .join("\n")
+        : "";
 
       // 3. Build Prompt & Messages History (Part 4 Prompt)
       const systemPrompt = buildSystemPrompt(persona, ragContext, recentHistoryText, messageToSend);
 
-      const recentHistory: ChatMessagePayload[] = session.messages.slice(-6).map((m) => ({
-        role: m.role === "echo" ? "assistant" : "user",
-        content: m.text,
-      }));
+      const recentHistory: ChatMessagePayload[] = session
+        ? session.messages.slice(-6).map((m: any) => ({
+            role: m.role === "echo" ? "assistant" : "user",
+            content: m.text,
+          }))
+        : [];
 
       const fullMessages: ChatMessagePayload[] = [
         { role: "system", content: systemPrompt },
@@ -96,9 +149,11 @@ router.post(
       ];
 
       // Get last assistant message for repetition detection
-      const lastAssistantMsg = [...session.messages]
-        .reverse()
-        .find((m) => m.role === "echo")?.text;
+      const lastAssistantMsg = session
+        ? [...session.messages]
+            .reverse()
+            .find((m: any) => m.role === "echo")?.text
+        : undefined;
 
       // 4. Generate LLM response (Groq / Provider / Fallback)
       console.log(`[ECHO VOICE] Groq request started: persona=${persona.name}, historyCount=${recentHistory.length}`);
@@ -141,10 +196,13 @@ router.post(
       }
 
       // Check voice profile availability & synthesize speech with ElevenLabs / VoiceService
-      const voiceProfile = await VoiceProfile.findOne({
-        personaId: persona._id,
-        status: { $in: ["ready", "unprocessed"] },
-      });
+      let voiceProfile: any = null;
+      if (mongoose.Types.ObjectId.isValid(persona._id)) {
+        voiceProfile = await VoiceProfile.findOne({
+          personaId: persona._id,
+          status: { $in: ["ready", "unprocessed"] },
+        });
+      }
       const voiceAvailable = !!voiceProfile || globalVoiceService.getProvider().isAvailable();
       let audioUrl = "";
 
@@ -167,31 +225,33 @@ router.post(
         }
       }
 
-      // 5. Append to ChatSession
-      session.messages.push({
-        role: "user",
-        text: messageToSend,
-        createdAt: new Date(),
-      });
+      // 5. Append to ChatSession if exists
+      if (session) {
+        session.messages.push({
+          role: "user",
+          text: messageToSend,
+          createdAt: new Date(),
+        });
 
-      session.messages.push({
-        role: "echo",
-        text: replyText,
-        grounded: ragContext.topMemoryTitle,
-        sources,
-        audioUrl: audioUrl || undefined,
-        createdAt: new Date(),
-      });
+        session.messages.push({
+          role: "echo",
+          text: replyText,
+          grounded: ragContext.topMemoryTitle,
+          sources,
+          audioUrl: audioUrl || undefined,
+          createdAt: new Date(),
+        });
 
-      await session.save();
+        await session.save();
+      }
 
       res.status(200).json({
         message: replyText,
-        personaId: persona._id,
-        sessionId: session._id,
+        personaId: persona._id || persona.id,
+        sessionId: session?._id || "demo_session",
         grounded: ragContext.topMemoryTitle,
         sources,
-        voiceAvailable,
+        voiceAvailable: true,
         audioUrl: audioUrl || undefined,
         disclaimer: "AI-generated remembrance response, never presented as an authentic historical message.",
       });

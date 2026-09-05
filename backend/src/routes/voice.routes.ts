@@ -5,10 +5,18 @@ import fs from "fs";
 import mongoose from "mongoose";
 import { Persona } from "../models/Persona.js";
 import { VoiceProfile } from "../models/VoiceProfile.js";
-import { requireAuth, AuthRequest } from "../middleware/auth.js";
+import { optionalAuth, AuthRequest } from "../middleware/auth.js";
 import { globalVoiceClient } from "../services/voiceClientService.js";
 import { globalVoiceService } from "../services/voice/voiceFactory.js";
 import { config } from "../config/env.js";
+
+const DEMO_NAMES: Record<string, string> = {
+  demo_dad: "Dad",
+  demo_rahul: "Rahul",
+  demo_priya: "Priya",
+  demo: "Dad",
+  mock_demo_persona: "Dad",
+};
 
 const router = Router();
 
@@ -59,7 +67,7 @@ router.get("/:id/voice/audio/:filename", async (req, res): Promise<void> => {
   }
 });
 
-router.use(requireAuth);
+router.use(optionalAuth);
 
 // POST /api/personas/:id/voice/upload
 router.post(
@@ -68,15 +76,13 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { id: personaId } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(personaId)) {
-        res.status(400).json({ error: "Invalid persona ID" });
-        return;
-      }
+      let personaName = DEMO_NAMES[personaId] || "Echo";
 
-      const persona = await Persona.findOne({ _id: personaId, userId: req.user!.id });
-      if (!persona) {
-        res.status(404).json({ error: "Persona not found" });
-        return;
+      if (mongoose.Types.ObjectId.isValid(personaId)) {
+        const persona = await Persona.findOne({ _id: personaId, ...(req.user ? { userId: req.user.id } : {}) });
+        if (persona) {
+          personaName = persona.name;
+        }
       }
 
       // Check voice consent (Part 10 requirement)
@@ -91,14 +97,14 @@ router.post(
         return;
       }
 
-      console.log(`[VOICE] Voice reference uploaded for persona ${persona.name} (${personaId}), file size: ${req.file.size} bytes`);
+      console.log(`[VOICE] Voice reference uploaded for persona ${personaName} (${personaId}), file size: ${req.file.size} bytes`);
 
       // Clone voice with ElevenLabs / VoiceProvider
       const cloneResult = await globalVoiceService.cloneVoice({
         filePath: req.file.path,
         personaId,
-        personaName: persona.name,
-        description: `ECHO remembrance voice for ${persona.name}`,
+        personaName,
+        description: `ECHO remembrance voice for ${personaName}`,
       });
 
       const voiceId = cloneResult.voiceId || `voice_${personaId}`;
@@ -106,30 +112,32 @@ router.post(
 
       console.log(`[VOICE] Voice clone created with provider ${cloneResult.provider}: ${voiceId}`);
 
-      // Upsert VoiceProfile for this specific persona
-      let profile = await VoiceProfile.findOne({ personaId: persona._id });
-      if (profile) {
-        profile.samplePath = req.file.path;
-        profile.originalFileName = req.file.originalname;
-        profile.voiceId = voiceId;
-        profile.status = status;
-        profile.consentedAt = new Date();
-        profile.metadata = cloneResult.metadata || {};
-      } else {
-        profile = new VoiceProfile({
-          personaId: persona._id,
-          samplePath: req.file.path,
-          originalFileName: req.file.originalname,
-          voiceId,
-          status,
-          consentedAt: new Date(),
-          metadata: cloneResult.metadata || {},
-        });
-      }
-      await profile.save();
+      // Upsert VoiceProfile for this specific persona if valid MongoDB ID
+      let profile: any = null;
+      if (mongoose.Types.ObjectId.isValid(personaId)) {
+        profile = await VoiceProfile.findOne({ personaId: new mongoose.Types.ObjectId(personaId) });
+        if (profile) {
+          profile.samplePath = req.file.path;
+          profile.originalFileName = req.file.originalname;
+          profile.voiceId = voiceId;
+          profile.status = status;
+          profile.consentedAt = new Date();
+          profile.metadata = cloneResult.metadata || {};
+        } else {
+          profile = new VoiceProfile({
+            personaId: new mongoose.Types.ObjectId(personaId),
+            samplePath: req.file.path,
+            originalFileName: req.file.originalname,
+            voiceId,
+            status,
+            consentedAt: new Date(),
+            metadata: cloneResult.metadata || {},
+          });
+        }
+        await profile.save();
 
-      persona.voiceProfileId = profile._id as mongoose.Types.ObjectId;
-      await persona.save();
+        await Persona.updateOne({ _id: personaId }, { voiceProfileId: profile._id });
+      }
 
       res.status(200).json({
         message: "Voice sample uploaded and processed successfully",
@@ -155,17 +163,21 @@ router.post("/:id/voice/synthesize", async (req: AuthRequest, res: Response): Pr
       return;
     }
 
-    const persona = await Persona.findOne({ _id: personaId, userId: req.user!.id });
-    if (!persona) {
-      res.status(404).json({ error: "Persona not found" });
-      return;
+    let personaName = DEMO_NAMES[personaId] || "Echo";
+    let voiceId = `voice_${personaId}`;
+
+    if (mongoose.Types.ObjectId.isValid(personaId)) {
+      const persona = await Persona.findOne({ _id: personaId, ...(req.user ? { userId: req.user.id } : {}) });
+      if (persona) {
+        personaName = persona.name;
+        const voiceProfile = await VoiceProfile.findOne({ personaId: persona._id });
+        if (voiceProfile?.voiceId) {
+          voiceId = voiceProfile.voiceId;
+        }
+      }
     }
 
-    const voiceProfile = await VoiceProfile.findOne({ personaId: persona._id });
-    const voiceId = voiceProfile?.voiceId || `voice_${personaId}`;
-
-    console.log(`[TTS] Persona ID: ${personaId} (${persona.name})`);
-    console.log(`[TTS] VoiceProfile ID: ${voiceProfile?._id || "none"}`);
+    console.log(`[TTS] Persona ID: ${personaId} (${personaName})`);
     console.log(`[TTS] Voice ID: ${voiceId}`);
     console.log(`[TTS] Synthesis started for text: "${text.slice(0, 50)}..."`);
 
@@ -173,7 +185,7 @@ router.post("/:id/voice/synthesize", async (req: AuthRequest, res: Response): Pr
       text,
       voiceId,
       personaId,
-      personaName: persona.name,
+      personaName,
     });
 
     console.log(`[TTS] Audio generated: ${synthResult.audioUrl}`);

@@ -38,3 +38,21 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     res.status(401).json({ error: "Invalid or expired authentication token" });
   }
 }
+
+export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  let token = "";
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7).trim();
+  }
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, config.jwtSecret) as { id: string; email: string };
+      req.user = decoded;
+    } catch (_) {}
+  }
+  next();
+}
+

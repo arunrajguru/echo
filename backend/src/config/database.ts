@@ -9,7 +9,11 @@ export async function connectDatabase(): Promise<typeof mongoose> {
 
   if (!uri) {
     console.log("[database] No MONGODB_URI provided. Initializing standalone MongoDB memory server instance...");
-    mongoMemoryServer = await MongoMemoryServer.create();
+    mongoMemoryServer = await MongoMemoryServer.create({
+      instance: {
+        launchTimeout: 60000,
+      },
+    });
     uri = mongoMemoryServer.getUri();
     console.log(`[database] Standalone MongoDB running at ${uri}`);
   }
@@ -23,7 +27,11 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   } catch (err) {
     if (!mongoMemoryServer) {
       console.warn("[database] Failed connecting to configured MONGODB_URI. Falling back to MongoDB Memory Server...");
-      mongoMemoryServer = await MongoMemoryServer.create();
+      mongoMemoryServer = await MongoMemoryServer.create({
+        instance: {
+          launchTimeout: 60000,
+        },
+      });
       const fallbackUri = mongoMemoryServer.getUri();
       const conn = await mongoose.connect(fallbackUri);
       console.log(`[database] Fallback MongoDB running at ${fallbackUri}`);
