@@ -9,8 +9,8 @@ import { MOCK_PERSONA, MOCK_MEMORIES } from "./data/mockData.js";
 import * as api from "./services/api.js";
 
 export default function App() {
-  // Start page defaults to Sign In page ("auth")
-  const [screen, setScreen] = useState("auth");
+  // Start page is the Home page ("landing")
+  const [screen, setScreen] = useState("landing");
   const [persona, setPersona] = useState(null);
   const [user, setUser] = useState(() => {
     try {
@@ -91,7 +91,7 @@ export default function App() {
               localStorage.removeItem("echo_user");
               setUser(null);
               setPersonas([]);
-              setScreen("auth");
+              setScreen("landing");
             }}
             onRefreshPersonas={fetchPersonas}
             onSelectPersona={handleSelectPersona}
