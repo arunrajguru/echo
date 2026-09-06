@@ -87,7 +87,7 @@ export const CAPABILITIES = [
  * Editable from this single configuration block.
  */
 export const FOUNDER_PROFILE = {
-  name: "Arun Rajpurohit",
+  name: "Arun Kumar P",
   role: "Project Lead / AI & Full-Stack Developer",
   photo: "/team/arun.jpg",
   introduction:
@@ -99,7 +99,7 @@ export const FOUNDER_PROFILE = {
     "Full-Stack Web Interface & Cloud Infrastructure Integration",
   ],
   github: "https://github.com/arunrajguru",
-  linkedin: "", // Add LinkedIn profile link here
+  linkedin: "https://www.linkedin.com/in/arun-kumar-p-5833632a7/", // Add LinkedIn profile link here
 };
 
 /**
@@ -110,13 +110,13 @@ export const FOUNDER_PROFILE = {
  */
 export const TEAM_MEMBERS = [
   {
-    name: "Arun Rajpurohit",
+    name: "Arun Kumar P",
     role: "Project Lead / AI & Full-Stack Developer",
     photo: "/team/arun.jpg",
     bio: "Leading system architecture, AI pipeline development, Dual-RAG retrieval, and full-stack integration.",
     contribution: "Project Architecture, Dual-RAG System, Full-Stack Engineering & Deployment",
     github: "https://github.com/arunrajguru",
-    linkedin: "",
+    linkedin: "https://www.linkedin.com/in/arun-kumar-p-5833632a7/",
   },
   {
     name: "Anusha B L",
@@ -124,8 +124,8 @@ export const TEAM_MEMBERS = [
     photo: "/team/anusha.jpg",
     bio: "Specializing in document parsing, vector indexing algorithms, and linguistic communication pattern analysis.",
     contribution: "Chat Ingestion Pipelines, Semantic Memory Indexing & Quality Assurance",
-    github: "",
-    linkedin: "",
+    github: "https://github.com/Anumin777",
+    linkedin: "https://www.linkedin.com/in/anusha-bl-b3492b200?",
   },
   {
     name: "Hemanth Mardi K S",
@@ -134,7 +134,7 @@ export const TEAM_MEMBERS = [
     bio: "Focusing on neural speech synthesis models, audio feature extraction, and continuous voice latency optimization.",
     contribution: "Neural Voice Engine, VoiceMode Continuity & Audio Processing",
     github: "https://github.com/Hemanth-Mardi",
-    linkedin: "",
+    linkedin: "https://l1nk.dev/n67urjl",
   },
 ];
 
