@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   ChevronLeft,
   Sparkles,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Logo, PrimaryButton, GhostButton } from "./shared/Basics.jsx";
 import { MemoryOrb } from "./MemoryOrb.jsx";
+import * as api from "../services/api.js";
 
 const CATEGORY_ICON = {
   Trips: MapPin,
@@ -22,13 +23,38 @@ const CATEGORY_ICON = {
 };
 
 export function MemorySpace({ persona, onOpenChat, onBack }) {
+  const [memoriesList, setMemoriesList] = useState(persona.memories || []);
   const [active, setActive] = useState(null);
+
+  useEffect(() => {
+    if (persona.id) {
+      api.getMemories(persona.id).then((mems) => {
+        if (mems && mems.length > 0) {
+          setMemoriesList(mems);
+        }
+      }).catch(() => {});
+    }
+  }, [persona.id]);
+
   const categories = useMemo(
-    () => ["All", ...new Set(persona.memories.map((m) => m.category))],
-    [persona.memories]
+    () => ["All", ...new Set(memoriesList.map((m) => m.category))],
+    [memoriesList]
   );
   const [filter, setFilter] = useState("All");
-  const visible = persona.memories.filter((m) => filter === "All" || m.category === filter);
+  const visible = memoriesList.filter((m) => filter === "All" || m.category === filter);
+
+  const handleHideMemory = async (mem) => {
+    const memId = mem.id || mem._id;
+    if (persona.id && memId) {
+      try {
+        await api.deleteMemory(persona.id, memId);
+      } catch (err) {
+        console.warn("[memory-space] Delete memory fallback:", err);
+      }
+    }
+    setMemoriesList((prev) => prev.filter((m) => (m.id || m._id) !== memId));
+    setActive(null);
+  };
 
   return (
     <div className="echo-fade-in w-full h-full flex flex-col">
@@ -75,14 +101,15 @@ export function MemorySpace({ persona, onOpenChat, onBack }) {
             >
               {visible.map((m) => {
                 const Icon = CATEGORY_ICON[m.category] || Sparkles;
+                const memId = m.id || m._id;
                 return (
                   <button
-                    key={m.id}
+                    key={memId}
                     onClick={() => setActive(m)}
                     className="echo-focus text-left rounded-lg px-3 py-2 backdrop-blur-sm text-xs"
                     style={{
                       background: "rgba(18,21,42,0.7)",
-                      border: `1px solid ${active?.id === m.id ? "var(--ember)" : "var(--line)"}`,
+                      border: `1px solid ${(active?.id || active?._id) === memId ? "var(--ember)" : "var(--line)"}`,
                     }}
                   >
                     <Icon size={13} style={{ color: "var(--ember)" }} className="mb-1.5" />
@@ -104,10 +131,10 @@ export function MemorySpace({ persona, onOpenChat, onBack }) {
             <div className="echo-fade-in">
               <div className="flex items-center justify-between mb-1">
                 <span className="echo-mono text-[11px]" style={{ color: "var(--ink-dim)" }}>
-                  {active.category.toUpperCase()} · {active.date}
+                  {active.category?.toUpperCase()} · {active.date}
                 </span>
                 <span className="echo-mono text-[11px]" style={{ color: "var(--ember)" }}>
-                  {Math.round(active.confidence * 100)}% confidence
+                  {Math.round((active.confidence || 0.85) * 100)}% confidence
                 </span>
               </div>
               <h3 className="echo-serif text-2xl mb-3">{active.title}</h3>
@@ -118,7 +145,7 @@ export function MemorySpace({ persona, onOpenChat, onBack }) {
                 SOURCE MESSAGES
               </p>
               <div className="space-y-2 mb-6">
-                {active.sourceLines.map((l, i) => (
+                {(active.sourceLines || []).map((l, i) => (
                   <div
                     key={i}
                     className="text-sm rounded-lg px-3 py-2"
@@ -130,7 +157,7 @@ export function MemorySpace({ persona, onOpenChat, onBack }) {
               </div>
               <div className="flex gap-2">
                 <GhostButton icon={Pencil}>Edit</GhostButton>
-                <GhostButton icon={Trash2}>Hide</GhostButton>
+                <GhostButton onClick={() => handleHideMemory(active)} icon={Trash2}>Hide</GhostButton>
               </div>
             </div>
           )}

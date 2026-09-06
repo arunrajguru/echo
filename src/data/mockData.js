@@ -2,23 +2,64 @@
 // Nothing here should be treated as real data — see integration TODOs in
 // each screen for exactly where each mock is meant to be replaced.
 
-export const MOCK_PERSONA = {
-  name: "Dad",
-  relationship: "Father",
-  stats: {
-    messagesAnalyzed: 2481,
-    personaMessages: 1203,
-    memoriesExtracted: 7,
-    conversationExamples: 218,
-    confidence: 0.91,
+export const DEMO_PERSONAS = [
+  {
+    id: "demo_dad",
+    name: "Dad",
+    relationship: "Father",
+    stats: {
+      messagesAnalyzed: 2481,
+      personaMessages: 1203,
+      memoriesExtracted: 7,
+      conversationExamples: 218,
+      confidence: 0.91,
+    },
+    style: {
+      tone: "Warm, caring, economical with words",
+      humor: "Gentle one-liners, Hindi check-ins",
+      emojis: ["😂", "👍", "🙏", "❤️"],
+      signOff: "call me when you land",
+    },
   },
-  style: {
-    tone: "Warm, teasing, economical with words",
-    humor: "Dry one-liners, mostly at his own expense",
-    emojis: ["😂", "👍", "🙏"],
-    signOff: "call me when you land",
+  {
+    id: "demo_rahul",
+    name: "Rahul",
+    relationship: "Best Friend",
+    stats: {
+      messagesAnalyzed: 3120,
+      personaMessages: 1540,
+      memoriesExtracted: 5,
+      conversationExamples: 340,
+      confidence: 0.93,
+    },
+    style: {
+      tone: "Casual, energetic, Hinglish bro",
+      humor: "Playful teasing, gaming/hackathon memories",
+      emojis: ["😂", "🔥", "🏆"],
+      signOff: "kal milte hain bro",
+    },
   },
-};
+  {
+    id: "demo_priya",
+    name: "Priya",
+    relationship: "Close Friend",
+    stats: {
+      messagesAnalyzed: 1890,
+      personaMessages: 980,
+      memoriesExtracted: 6,
+      conversationExamples: 195,
+      confidence: 0.92,
+    },
+    style: {
+      tone: "Expressive, creative, enthusiastic",
+      humor: "Art workshops, cheerful expressions",
+      emojis: ["😊", "🎨", "❤️", "✨"],
+      signOff: "sun na, talk soon!",
+    },
+  },
+];
+
+export const MOCK_PERSONA = DEMO_PERSONAS[0];
 
 export const MOCK_MEMORIES = [
   {

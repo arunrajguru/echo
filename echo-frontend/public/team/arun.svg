@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="arunGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e2238" />
+      <stop offset="100%" stop-color="#0f111d" />
+    </linearGradient>
+    <linearGradient id="amberGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e7a857" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#arunGrad)" stroke="#e7a857" stroke-width="3" stroke-opacity="0.6"/>
+  <!-- Subtle tech pattern -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="#2a3154" stroke-width="1" stroke-dasharray="4 4"/>
+  <!-- Avatar Silhouette -->
+  <circle cx="100" cy="72" r="34" fill="url(#amberGlow)" opacity="0.9"/>
+  <path d="M44 162 C44 126, 70 114, 100 114 C130 114, 156 126, 156 162 Z" fill="url(#amberGlow)" opacity="0.85"/>
+  <!-- Initials Badge -->
+  <circle cx="150" cy="150" r="22" fill="#0a0c16" stroke="#e7a857" stroke-width="2"/>
+  <text x="150" y="156" text-anchor="middle" fill="#e7a857" font-family="sans-serif" font-weight="bold" font-size="12">AR</text>
+</svg>

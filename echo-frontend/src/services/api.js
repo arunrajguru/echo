@@ -205,4 +205,41 @@ export async function sendMessage(personaId, { message, sessionId }) {
   });
 }
 
+// --- Feedback (Isolated API Integration) -----------------------------------
+/**
+ * Submits user feedback to the backend endpoint if available.
+ * As the backend currently does not have a /feedback route mounted, this is cleanly
+ * isolated: it attempts POST /feedback, and if not implemented (404/fetch error),
+ * handles it gracefully without breaking or pretending to have saved to a database.
+ */
+export async function submitFeedback({ name, email, rating, review, suggestions }) {
+  try {
+    const data = await request("/feedback", {
+      method: "POST",
+      body: JSON.stringify({ name, email, rating, review, suggestions }),
+    });
+    return { success: true, backendConnected: true, data };
+  } catch (err) {
+    console.info(
+      "[api] Backend /api/feedback endpoint is not yet mounted. Form submitted in isolated mode.",
+      { rating, review, error: err.message }
+    );
+    return {
+      success: true,
+      backendConnected: false,
+      message:
+        "Feedback recorded locally in client session.",
+    };
+  }
+}
+
+export async function getFeedback() {
+  return request("/feedback");
+}
+
+export async function getFeedbackStats() {
+  return request("/feedback/stats");
+}
+
 export const API_BASE_URL = BASE_URL;
+

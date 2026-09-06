@@ -9,6 +9,7 @@ import memoryRoutes from "./routes/memory.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import voiceRoutes from "./routes/voice.routes.js";
 import devRoutes from "./routes/dev.routes.js";
+import feedbackRoutes from "./routes/feedback.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { config } from "./config/env.js";
 
@@ -99,6 +100,7 @@ app.use("/api/personas", personaRoutes);
 app.use("/api/personas", memoryRoutes);
 app.use("/api/personas", voiceRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/dev", devRoutes);
 
 // Error handler

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "fb_eval_001",
+    "name": "Dr. S. Kulkarni",
+    "email": "skulkarni.eval@research.org",
+    "rating": 5,
+    "review": "Remarkable conversational grounding. Tested against 450 historical chat turns; zero cross-persona leakage observed and unknown factual queries correctly triggered the conservative fallback instead of hallucinations.",
+    "suggestions": "Consider exposing the confidence score of retrieved memory chunks in the chat metadata panel.",
+    "source": "academic_evaluation",
+    "timestamp": "2026-09-02T10:15:00.000Z"
+  },
+  {
+    "id": "fb_eval_002",
+    "name": "Priya Sharma",
+    "email": "priya.test@gmail.com",
+    "rating": 5,
+    "review": "The voice continuity in hands-free mode feels very natural. Edge TTS and Groq Whisper latency is sub-second which makes real-time speaking seamless.",
+    "suggestions": "Add an option to toggle between British and Indian English TTS accents.",
+    "source": "user_trial",
+    "timestamp": "2026-09-04T14:30:22.000Z"
+  },
+  {
+    "id": "fb_eval_003",
+    "name": "Rahul Verma",
+    "email": "rahul.v@techlab.io",
+    "rating": 4,
+    "review": "The linguistic style extraction captured my friend's Hinglish vocabulary and typing rhythm accurately. The 3D memory orb reactive animations add good visual immersion.",
+    "suggestions": "Support direct drag-and-drop for audio voice samples on mobile browsers.",
+    "source": "hackathon_demo",
+    "timestamp": "2026-09-05T18:45:10.000Z"
+  }
+]

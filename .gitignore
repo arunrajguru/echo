@@ -23,7 +23,8 @@ __pycache__/
 
 # Runtime data & uploads
 backend/uploads/
-backend/data/
+backend/data/*
+!backend/data/feedback_dataset.json
 voice-engine/temp/
 voice-engine/outputs/
 

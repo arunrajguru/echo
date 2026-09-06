@@ -9,9 +9,17 @@ import { MOCK_PERSONA, MOCK_MEMORIES } from "./data/mockData.js";
 import * as api from "./services/api.js";
 
 export default function App() {
-  const [screen, setScreen] = useState("landing");
+  // Start page defaults to Sign In page ("auth")
+  const [screen, setScreen] = useState("auth");
   const [persona, setPersona] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("echo_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [personas, setPersonas] = useState([]);
 
   // Fetch all personas for the user
@@ -31,7 +39,7 @@ export default function App() {
   }, [fetchPersonas, user]);
 
   const requireAuthThen = (nextScreen) => {
-    if (user || localStorage.getItem("echo_token")) {
+    if (user && localStorage.getItem("echo_token")) {
       setScreen(nextScreen);
     } else {
       setScreen("auth");
@@ -80,8 +88,10 @@ export default function App() {
             onOpenAuth={() => setScreen("auth")}
             onLogout={() => {
               localStorage.removeItem("echo_token");
+              localStorage.removeItem("echo_user");
               setUser(null);
               setPersonas([]);
+              setScreen("auth");
             }}
             onRefreshPersonas={fetchPersonas}
             onSelectPersona={handleSelectPersona}
@@ -96,6 +106,11 @@ export default function App() {
           <Auth
             onBack={() => setScreen("landing")}
             onAuthenticated={(loggedInUser) => {
+              try {
+                if (loggedInUser) {
+                  localStorage.setItem("echo_user", JSON.stringify(loggedInUser));
+                }
+              } catch {}
               setUser(loggedInUser);
               fetchPersonas();
               setScreen("landing");
