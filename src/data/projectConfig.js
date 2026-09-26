@@ -87,7 +87,7 @@ export const CAPABILITIES = [
  * Editable from this single configuration block.
  */
 export const FOUNDER_PROFILE = {
-  name: "Arun Rajpurohit",
+  name: "Arun Kumar P",
   role: "Project Lead / AI & Full-Stack Developer",
   photo: "/team/arun.jpg",
   introduction:
@@ -110,7 +110,7 @@ export const FOUNDER_PROFILE = {
  */
 export const TEAM_MEMBERS = [
   {
-    name: "Arun Rajpurohit",
+    name: "Arun Kumar P",
     role: "Project Lead / AI & Full-Stack Developer",
     photo: "/team/arun.jpg",
     bio: "Leading system architecture, AI pipeline development, Dual-RAG retrieval, and full-stack integration.",
@@ -124,8 +124,8 @@ export const TEAM_MEMBERS = [
     photo: "/team/anusha.jpg",
     bio: "Specializing in document parsing, vector indexing algorithms, and linguistic communication pattern analysis.",
     contribution: "Chat Ingestion Pipelines, Semantic Memory Indexing & Quality Assurance",
-    github: "",
-    linkedin: "",
+    github: "https://github.com/Anumin777",
+    linkedin: "https://www.linkedin.com/in/anusha-bl-b3492b200?",
   },
   {
     name: "Hemanth Mardi K S",
@@ -134,7 +134,7 @@ export const TEAM_MEMBERS = [
     bio: "Focusing on neural speech synthesis models, audio feature extraction, and continuous voice latency optimization.",
     contribution: "Neural Voice Engine, VoiceMode Continuity & Audio Processing",
     github: "https://github.com/Hemanth-Mardi",
-    linkedin: "",
+    linkedin: "https://l1nk.dev/n67urjl",
   },
 ];
 
@@ -146,7 +146,7 @@ export const CONTACT_CONFIG = {
   email: "rajgurukotturu@gmail.com",
   whatsapp: "", // e.g. "+1234567890" or leave empty to hide
   github: "https://github.com/arunrajguru/echo",
-  linkedin: "https://www.linkedin.com/in/arun-kumar-p-5833632a7/", // Replace with your LinkedIn organization or profile
+  linkedin: "", // Replace with your LinkedIn organization or profile
   issueUrl: "https://github.com/arunrajguru/echo/issues",
 };
 

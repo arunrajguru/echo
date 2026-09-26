@@ -28,7 +28,12 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (origin.includes("localhost") || origin.includes("127.0.0.1") || origin === config.corsOrigin) {
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.endsWith(".vercel.app") ||
+        origin === config.corsOrigin
+      ) {
         return callback(null, true);
       }
       return callback(null, false);

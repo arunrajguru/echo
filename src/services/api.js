@@ -36,6 +36,7 @@ async function request(endpoint, options = {}) {
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers,
   });
 
@@ -46,6 +47,24 @@ async function request(endpoint, options = {}) {
   }
 
   return data;
+}
+
+export async function verifyOtp({ email, otp }) {
+  const data = await request("/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
+  if (data.token) {
+    setToken(data.token);
+  }
+  return data.user;
+}
+
+export async function resendOtp({ email }) {
+  return request("/auth/resend-otp", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 // --- Auth ---------------------------------------------------------------
@@ -64,6 +83,17 @@ export async function login({ email, password }) {
   const data = await request("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+  if (data.token) {
+    setToken(data.token);
+  }
+  return data.user;
+}
+
+export async function googleLogin({ id_token }) {
+  const data = await request("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ id_token }),
   });
   if (data.token) {
     setToken(data.token);
