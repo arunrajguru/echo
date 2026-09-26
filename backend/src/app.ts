@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
 import authRoutes from "./routes/auth.routes.js";
@@ -30,11 +31,14 @@ app.use(
       if (origin.includes("localhost") || origin.includes("127.0.0.1") || origin === config.corsOrigin) {
         return callback(null, true);
       }
-      return callback(null, true);
+      return callback(null, false);
     },
     credentials: true,
   })
 );
+
+// Cookie parsing
+app.use(cookieParser());
 
 // Body parsing
 app.use(express.json({ limit: "50mb" }));
