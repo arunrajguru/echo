@@ -1,6 +1,9 @@
 // Echo API client wired to backend endpoints.
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const rawBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const BASE_URL = rawBaseUrl.endsWith("/api")
+  ? rawBaseUrl
+  : `${rawBaseUrl.replace(/\/+$/, "")}/api`;
 
 function getToken() {
   try {
