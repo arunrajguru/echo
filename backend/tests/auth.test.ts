@@ -51,15 +51,15 @@ describe("Auth API", () => {
     expect(res.status).toBe(400);
   });
 
-  it("should block login for unverified user with HTTP 403", async () => {
+  it("should allow login for valid credentials directly without OTP requirement", async () => {
     const res = await request(app)
       .post("/api/auth/login")
       .send(testUser);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toContain("verify your email");
-    expect(res.body.token).toBeUndefined();
-    expect(res.headers["set-cookie"]).toBeUndefined();
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+    expect(res.body.user).toBeDefined();
+    expect(res.headers["set-cookie"]).toBeDefined();
   });
 
   it("should reject invalid login credentials", async () => {

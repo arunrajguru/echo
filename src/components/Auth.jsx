@@ -86,13 +86,7 @@ export function Auth({ onBack, onAuthenticated }) {
         setInfoMsg("A 6-digit verification code has been sent to your email.");
       }
     } catch (err) {
-      if (mode === "login" && err.message && err.message.toLowerCase().includes("verify your email")) {
-        setMode("otp");
-        setOtp("");
-        setInfoMsg("Please verify your email to continue. Enter your verification code below.");
-      } else {
-        setError(err.message || "Something went wrong. Please try again.");
-      }
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

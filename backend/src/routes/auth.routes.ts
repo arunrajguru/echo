@@ -29,6 +29,10 @@ const GoogleAuthSchema = z.object({
 });
 
 async function sendOtpEmail(email: string, otp: string): Promise<void> {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || "ECHO <onboarding@resend.dev>";
 
@@ -124,11 +128,6 @@ router.post("/login", validateBody(AuthSchema), async (req: Request, res: Respon
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       res.status(401).json({ error: "Invalid email or password" });
-      return;
-    }
-
-    if (!user.isVerified) {
-      res.status(403).json({ error: "Please verify your email before logging in." });
       return;
     }
 
